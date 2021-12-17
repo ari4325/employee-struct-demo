@@ -1,0 +1,114 @@
+ <HEAD>
+     <title>EmployeeData</title>
+     <script src="https://cdn.jsdelivr.net/npm/web3@latest/dist/web3.min.js"></script>
+ </HEAD>
+ <BODY>
+     <div id='container'>
+        <div id="error_tag"></div><br><br>
+        <form id="form1">
+            <label>EMPLOYEE ID:</label><br>
+            <input type="text" id="empid" placeholder="only INTEGER value"><br><br>
+            <label>EMPLOYEE NAME:</label><br>
+            <input type="text" id="name"><br><br>
+            <label>EMPLOYEE DESIGNATION:</label><br>
+            <input type="text" id="designation"><br><br>
+            <label>EMPLOYEE DEPARTMENT:</label><br>
+            <input type="text" id="department"><br><br>
+            <input type="submit" value="SUBMIT">
+        </form>
+
+        <div id="form1_response"></div>
+
+        <form id="form2">
+            <label>Employee ID:</label><br>
+            <input type="text" id="empid_get"><br><br>
+            <input type="submit" value="GET">
+        </form>
+
+        <div id="form2_response"></div>
+
+     </div>
+     <script>
+        var web3, accounts, network_id, empData, contract;
+
+        var form1 = document.getElementById('form1');
+        var form2 =document.getElementById('form2');
+
+        var empid = document.getElementById('empid');
+        var nameEmp = document.getElementById('name');
+        var designation = document.getElementById('designation');
+        var department = document.getElementById('department');
+
+        var empid_get = document.getElementById('empid_get');
+
+        window.addEventListener('load', async (event) => {   
+            await fetch('./build/contracts/StructDemo.json')
+            .then(response => response.json())
+            .then(data => {
+                empData = data;
+            });        
+            loadProvider();
+        })
+
+        form1.addEventListener('submit', addEmployee);
+        form2.addEventListener('submit', getEmployee);
+
+        async function loadProvider(){
+            if(!window.ethereum) document.getElementById('error_tag').innerText = "Install a web3 provider like Metamask";
+            web3 = new Web3(window.ethereum);
+
+            try{
+                await window.ethereum.enable();
+                accounts = await web3.eth.getAccounts();
+                await web3.eth.net.getId()
+                .then((id) => {
+                    network_id = id;
+                    if(network_id !== 97) alert('Please switch to Binance Smart Chain - Testnet. Network ID: 97');
+                });
+                contract = new web3.eth.Contract(empData.abi, '0x15a77F6f0fAF42a49E1F1c3e33c0C423dCdFe0df');
+                document.getElementById('error_tag').innerText = "Network ID: "+network_id;
+            }catch(err){
+                document.getElementById('error_tag').innerText = err['message'];
+                console.log(err);
+            }
+        }
+
+        async function addEmployee(event){
+            event.preventDefault();
+            await contract.methods.addEmployee(parseInt(empid.value), nameEmp.value, designation.value, department.value).send({
+                from: accounts[0]
+            }).on("receipt", function(receipt) {
+                //alert('Employee Added Successfully');
+                document.getElementById('form1_response').innerText='User with EmpID: '+empid.value+' created successfully';
+                console.log(receipt);
+                //document.getElementById('')
+            })
+            .on("error", function(error) {
+                document.getElementById('form1_response').innerText='EmpID: '+ empid.value+' already exists';
+                //alert(error);
+            });
+        }
+
+        async function getEmployee(event){
+            event.preventDefault();
+            await contract.methods.getEmployee(parseInt(empid_get.value)).call()
+            .then(result => { 
+                console.log(result) 
+                let val = result;
+                document.getElementById('form2_response').innerText='Employee ID: '+val[0]+'\nName: '+val[1]+'\nDepartment: '+val[3]+'\nDesignation: '+val[2];
+            }).catch(revertReason => {
+                console.log({ revertReason })
+                document.getElementById('form2_response').innerText= "User could not be found";
+            });
+
+            /*console.log(val);
+
+            try{
+                document.getElementById('form2_response').innerText='Employee ID: '+val[2]+'\nName: '+val[3]+'\nDepartment: '+val[0]+'\nDesignation: '+val[1];
+            }catch(err){
+            }*/
+        }
+        
+        
+     </script>
+ </BODY>
